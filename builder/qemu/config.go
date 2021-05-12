@@ -116,6 +116,8 @@ type Config struct {
 	// If unset, no -bios option is passed to QEMU, using the default of QEMU.
 	// Also see the QEMU documentation.
 	Firmware string `mapstructure:"firmware" required:"false"`
+	// Specify firmware type to use
+	FirmwareType string `mapstructure:"firmware_type" required:"false"`
 	// The interface to use for the disk. Allowed values include any of `ide`,
 	// `scsi`, `virtio` or `virtio-scsi`^\*. Note also that any boot commands
 	// or kickstart type scripts must have proper adjustments for resulting
@@ -522,6 +524,10 @@ func (c *Config) Prepare(raws ...interface{}) ([]string, error) {
 		default:
 			c.QemuBinary = fmt.Sprintf("qemu-system-%s", c.Architecture)
 		}
+	}
+
+	if c.FirmwareType == "" {
+		c.FirmwareType = "bios"
 	}
 
 	if c.OutputDir == "" {
