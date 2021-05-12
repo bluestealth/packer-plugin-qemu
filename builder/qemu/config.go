@@ -76,6 +76,8 @@ type Config struct {
 	// Use iso from provided url. Qemu must support
 	// curl block device. This defaults to `false`.
 	ISOSkipCache bool `mapstructure:"iso_skip_cache" required:"false"`
+	// Architecture of virtual machine
+	Architecture string `mapstructure:"architecture_type" required:"false"`
 	// The accelerator type to use when running the VM.
 	// This may be `none`, `kvm`, `tcg`, `hax`, `hvf`, `whpx`, or `xen`. The appropriate
 	// software must have already been installed on your build machine to use the
@@ -481,16 +483,49 @@ func (c *Config) Prepare(raws ...interface{}) ([]string, error) {
 		log.Printf("use specified accelerator: %s", c.Accelerator)
 	}
 
+	if c.Architecture == "" {
+		switch runtime.GOARCH {
+		case "mipsle":
+			c.Architecture = "mipsel"
+		case "mips64el":
+			c.Architecture = "mips64el"
+		case "386":
+			c.Architecture = "i386"
+		case "amd64":
+			c.Architecture = "x86_64"
+		case "arm64":
+			c.Architecture = "aarch64"
+		default:
+			c.Architecture = runtime.GOARCH
+		}
+	}
+
 	if c.MachineType == "" {
-		c.MachineType = "pc"
+		switch c.Architecture {
+		case "mips", "mipsle", "mips64", "mips64le":
+			c.MachineType = "malta"
+		case "i386", "x86_64":
+			c.MachineType = "q35"
+		case "ppc":
+			c.MachineType = "ppce500"
+		case "ppc64":
+			c.MachineType = "pseries"
+		default:
+			c.MachineType = "virt"
+		}
+	}
+
+	if c.QemuBinary == "" {
+		switch c.Architecture {
+		case "ppc64", "ppc64le":
+			c.QemuBinary = "qemu-system-ppc64"
+		default:
+			c.QemuBinary = fmt.Sprintf("qemu-system-%s", c.Architecture)
+		}
 	}
 
 	if c.OutputDir == "" {
 		c.OutputDir = fmt.Sprintf("output-%s", c.PackerBuildName)
-	}
-
-	if c.QemuBinary == "" {
-		c.QemuBinary = "qemu-system-x86_64"
 	}
 
 	if c.MemorySize < 10 {
@@ -643,5 +678,4 @@ func (c *Config) Prepare(raws ...interface{}) ([]string, error) {
 	}
 
 	return warnings, nil
-
 }
